@@ -5,12 +5,35 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
+
+import it.polito.tdp.crimes.model.Adiacenza;
 import it.polito.tdp.crimes.model.Event;
 
 
 public class EventsDao {
-	
+	public List<String> getCategorie(){
+		String sql="SELECT DISTINCT(e.offense_category_id) "
+		            + "FROM events AS e ";
+		List<String> result=new LinkedList<String>();
+
+		try {
+			Connection conn = DBConnect.getConnection() ;
+			PreparedStatement st = conn.prepareStatement(sql) ;			
+			ResultSet res = st.executeQuery() ;
+			while(res.next()) {
+				result.add(res.getString("offense_category_id"));
+			}
+			conn.close();
+			return result;
+		} catch (Exception e) {
+			// TODO: handle exception
+			e.printStackTrace();
+			return null;
+		
+		}
+	}
 	public List<Event> listAllEvents(){
 		String sql = "SELECT * FROM events" ;
 		try {
@@ -53,5 +76,80 @@ public class EventsDao {
 			return null ;
 		}
 	}
+	public List<String> getVertici(String categoria,int mese){
+		/*
+		 * VERTICI  ---> tipi di reato corrispondenti ai criteri selezionati         
+		 * 
+		 */
+		String sql = "SELECT DISTINCT e.offense_type_id "
+				+ "FROM events AS e "
+				+ "WHERE  e.offense_category_id =? AND MONTH(e.reported_date)=? " ;
+		ArrayList<String> result=new ArrayList<String>();
+		
+		try {
+			Connection conn = DBConnect.getConnection() ;
+			PreparedStatement st = conn.prepareStatement(sql) ;		
+			st.setString(1,categoria);
+			st.setInt(2,mese);
+			ResultSet res = st.executeQuery() ;
+			
+			while(res.next()) {
+			 
+				result.add(res.getString("e.offense_type_id"));
 
+			}
+
+			conn.close();
+			return result;
+		}catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			return null;
+		}
+		
+		
+	}
+	public List<Adiacenza> getAdiacenze(String categoria,int mese){
+		/*
+		 * ARCHI: ---> numero di quartieri distintinti in 
+		 *             cui i due vertici(TIPI DI REATO) sono avvenuti
+		 *   
+		 * 
+		 */
+		String sql="SELECT e1.offense_type_id AS v1, e2.offense_type_id AS v2, COUNT(DISTINCT(e1.neighborhood_id)) AS peso "
+				+ "FROM events AS e1,events AS e2 "
+				+ "WHERE e1.offense_category_id=? AND e1.offense_category_id=e2.offense_category_id "
+				+ "AND MONTH(e1.reported_date)=? AND MONTH(e1.reported_date)=MONTH(e2.reported_date) "
+				+ "AND e1.offense_type_id!=e2.offense_type_id "
+				+ "AND e1.neighborhood_id=e2.neighborhood_id "
+				+ "GROUP BY e1.offense_type_id,e2.offense_type_id ";  
+	
+
+	List<Adiacenza> result = new LinkedList<Adiacenza>();
+	
+	
+	
+	try {
+		Connection conn = DBConnect.getConnection() ;
+		PreparedStatement st = conn.prepareStatement(sql) ;		
+
+		st.setString(1,categoria);
+		st.setInt(2, mese);
+		ResultSet res = st.executeQuery() ;
+		
+		while(res.next()) {
+		 
+			Adiacenza a=new Adiacenza(res.getString("v1"),res.getString("v2"),res.getInt("peso"));
+			result.add(a);
+		}
+
+		conn.close();
+		return result;
+	}catch (SQLException e) {
+		// TODO Auto-generated catch block
+		e.printStackTrace();
+		return null;
+	}
+}
+	
 }
